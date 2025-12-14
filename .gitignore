@@ -1,0 +1,49 @@
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# Docker 相关
+docker-compose.override.yml
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+
+# 构建产物
+node_modules/
+target/
+dist/
+build/
+*.jar.original
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+#用户文件
+assets/

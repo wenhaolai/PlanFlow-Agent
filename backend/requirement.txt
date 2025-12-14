@@ -1,0 +1,15 @@
+fastapi>=0.121.0
+uvicorn[standard]>=0.38.0
+openai>=2.7.1
+pymysql>=1.1.2
+sqlalchemy>=2.0.0
+cryptography>=42.0.0
+chromadb>=1.3.4 # For vector database functionality
+python-multipart # For handling file uploads
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+httpx>=0.26.0
+requests>=2.31.0
