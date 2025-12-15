@@ -60,7 +60,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      DASHSCOPE_API_KEY: ${LLM_API_KEY}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      SECURITY_KEY: ${SECURITY_KEY}
       TZ: ${TZ}
     networks:
       - app-network
