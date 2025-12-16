@@ -1,61 +1,75 @@
-import os
-from datetime import timedelta, datetime, timezone
+import logging
+from datetime import datetime
 
-import jwt
-import uvicorn
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+
+from core.constants import ErrorMessages
+from core.mysql import get_db
+from core.security import get_password_hash, verify_password, create_access_token
+from models.UserModel import User
+from schemas.UserSchema import UserLogin, UserResponse, UserCreate, UserLoginResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-SECURITY_KEY = os.environ.get("SECURITY_KEY", "qq_ncy9tw3YeRhoAKWHiiaqmgc4fF3uxOLr-X9eugZE")
-ALGORITHM = os.environ.get("ALGORITHM", "HS256")
-oauth2_schema = OAuth2PasswordBearer(tokenUrl="/login")
+@router.post("/user/register", response_model=UserResponse)
+async def register(
+        user_data: UserCreate,
+        db: Session = Depends(get_db)
+):
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorMessages.EMAIL_EXISTS)
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
+    existing_user = db.query(User).filter(User.email == user_data.username).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorMessages.USERNAME_EXISTS)
 
-def validate_user(username: str, password: str):
-    if username == username and password == password:
-        return username
+    # 创建用户
+    hashed_password = get_password_hash(user_data.password)
+    db_user = User(
+        email=user_data.email,
+        username=user_data.username,
+        password_hash=hashed_password,
+        bio = user_data.bio
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
 
-    return None
+    logger.info(f"创建用户：{user_data.username}，ID is {db_user.id}")
+    return db_user
 
-def get_current_user(token: str = Depends(oauth2_schema)):
-    try:
-        token_data = jwt.decode(token, SECURITY_KEY, algorithms=[ALGORITHM])
-        if token_data:
-            username = token_data.get("username", None)
-            return username
-    except Exception:
+@router.post("/user/login", response_model=UserLoginResponse)
+async def login(
+        user_login_data: UserLogin,
+        db: Session = Depends(get_db)
+):
+    # 可以使用用户名或者密码进行登录
+    user = db.query(User).filter(
+        or_(
+            User.username == user_login_data.username,
+            User.email == user_login_data.username
+        )
+    ).first()
+
+    if not user or not verify_password(user_login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="用户名或密码错误",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-@router.post('/login', response_model=Token)
-async def login(login_form: OAuth2PasswordRequestForm = Depends()):
-    username = validate_user(login_form.username, login_form.password)
-    if not username:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Incorrect username or password",
-                            headers={"WWW-Authenticate": "Bearer"})
+    user.last_login = datetime.now()
+    db.commit()
 
-    token_expires = datetime.now(timezone.utc) + timedelta(minutes=30)
-    token_data = {
-        "username": username,
-        "exp": token_expires
-    }
+    access_token = create_access_token(subject={"user_id": user.id})
 
-    token = jwt.encode(token_data, SECURITY_KEY, algorithm=ALGORITHM)
-    return Token(access_token=token, token_type="Bearer")
-
-@router.get('/items')
-async def get_items(username: str = Depends(get_current_user)):
-    return {"current_user": username}
-
-if __name__ == '__main__':
-    uvicorn.run(reload=True)
+    return UserLoginResponse(
+        access_token=access_token,
+        token_type="bearer"
+    )
+    

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
+from fastapi import HTTPException
 import logging
 from core.config import settings
 from core.constants import (
@@ -87,6 +88,10 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except HTTPException:
+        # 业务逻辑抛出的HTTP异常，仅回滚事务，不记录错误日志
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"数据库会话异常: {e}", exc_info=True)
