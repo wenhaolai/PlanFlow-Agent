@@ -20,3 +20,4 @@ httpx>=0.26.0
 requests>=2.31.0
 
 pydantic[email]
+ddgs
