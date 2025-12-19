@@ -42,7 +42,7 @@ class AgentManager:
 
             # 3. 执行单步
             result = self.executor.execute_step(step=next_step, history=agent_state.history)
-            print(f"In Manage, success executing step {next_step.id}, result is {result.raw_output}")
+            print(f"In Manage, success executing step {next_step.id}, result {result.raw_output[:20]}")
 
             # 4. 更新 step 状态
             if result.is_success:
@@ -61,13 +61,20 @@ class AgentManager:
                 break
 
             # 7. 交给 Replanner 判断是否需要调整计划
-            self.planner.refine_plan(current_plan=plan, history=agent_state.history)
+            plan = self.planner.refine_plan(current_plan=plan, history=agent_state.history)
+            agent_state.current_plan = plan
 
             step_count += 1
+
+        if not agent_state.current_plan.final_answer:
+            print("Max steps reached or no final answer, generating summary...")
+            final_result = self.executor.summary_final(problem, agent_state.history)
+            agent_state.current_plan.final_answer = final_result.raw_output
 
         return agent_state
 
 if __name__ == "__main__":
     agent = AgentManager(max_steps=10)
-    agent_status = agent.run(problem="今年f1冠军得主的家乡在哪里？")
+    agent_status = agent.run(problem="25考研软微的复试分数线是多少?")
     print(agent_status)
+    print(f"最终获得的答案是: {agent_status.current_plan.final_answer}")

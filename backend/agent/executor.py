@@ -11,7 +11,7 @@ from typing import Callable, List, Optional
 from openai import OpenAI
 
 from agent.schema import StepResult, Step, StepStatus, StepRecord
-from agent.prompts import TOOL_ARGUMENT_PROMPT_TEMPLATE, LLM_EXECUTOR_PROMPT_TEMPLATE
+from agent.prompts import TOOL_ARGUMENT_PROMPT_TEMPLATE, LLM_EXECUTOR_PROMPT_TEMPLATE, FINAL_FALLBACK_SYSTEM_PROMPT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,7 @@ class Executor:
             # 假设工具函数支持 **kwargs 传参
             result = tool_func(**tool_args)
 
-            print(f"execute TOOL {tool_name} result: {result}")
+            print(f"execute TOOL {tool_name} success for {step.id}, get result len: {len(result)}")
             step.status = StepStatus.COMPLETED
 
             return StepResult(
@@ -186,4 +186,47 @@ class Executor:
                 is_success=False,
                 error_message=f"Tool execution failed: {str(e)}",
                 tool_name=tool_name
+            )
+
+    def summary_final(self, query: str, history: List[StepRecord]) -> StepResult:
+        """
+        当达到最大步数限制时，尝试根据历史记录生成最终答案
+        """
+        logger.info("Max steps reached, generating final summary.")
+        
+        history_str = ""
+        if history:
+            history_str = "\n".join([f"Step {record.step.id}: {record.step.description}\nResult: {record.result.raw_output}" for record in history])
+        else:
+            history_str = "无"
+
+        prompt = Template(FINAL_FALLBACK_SYSTEM_PROMPT_TEMPLATE).safe_substitute(
+            query=query,
+            history=history_str
+        )
+
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "请给出最终答案"}
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages
+            )
+            
+            content = response.choices[0].message.content
+            
+            return StepResult(
+                is_success=True,
+                raw_output=content,
+                structured_output={"final_answer": content}
+            )
+            
+        except Exception as e:
+            logger.error(f"Final summary failed: {e}")
+            return StepResult(
+                is_success=False,
+                error_message=f"Final summary failed: {str(e)}"
             )
