@@ -9,7 +9,9 @@ import os
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from api.user import router
+from api.user import router as user_router
+from api.chat import router as chat_router
+from api.tasks import router as task_router
 from core.mysql import get_db
 
 # fastapi.Path/Query/Body支持url内参数的验证
@@ -26,7 +28,9 @@ from core.mysql import get_db
 
 app = FastAPI()
 
-app.include_router(router, prefix='/api')
+app.include_router(user_router, prefix='/api')
+app.include_router(chat_router, prefix='/api')
+app.include_router(task_router, prefix='/api')
 
 @app.get("/")
 async def root():

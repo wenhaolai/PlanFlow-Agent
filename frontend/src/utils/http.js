@@ -5,7 +5,7 @@ const BASE_API = import.meta.env.VITE_BASE_API || '/api'
 
 const http = axios.create({
   baseURL: BASE_API,
-  timeout: 15000,
+  timeout: 600000, // 10 minutes // 目前后端某些操作可能较慢，为了保险起见设置较长超时
   withCredentials: false,
   headers: {
     'Accept': 'application/json',
